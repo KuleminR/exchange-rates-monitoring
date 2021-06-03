@@ -7,7 +7,7 @@ import time
 
 # constants
 bank_api_url = 'https://www.tinkoff.ru/api/v1/currency_rates/'
-data_update_time = 1200 # seconds
+data_update_time = 1800 # seconds (30 minutes)
 rate_objects_indexes = (6, 9, 12)
 
 # Flask config
@@ -69,8 +69,7 @@ class DataCollector(Thread):
 
                     last_upd = time.time()
 
-
-d_collector = DataCollector(db, data_update_time, bank_api_url, rate_objects_indexes)
+DataCollector(db, data_update_time, bank_api_url, rate_objects_indexes)
 
 # routes
 @app.route('/test')
@@ -78,5 +77,4 @@ def test():
     return '200'
 
 if __name__ == '__main__':
-    #data_collector.run()
     app.run(debug=True)
