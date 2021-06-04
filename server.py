@@ -77,15 +77,33 @@ def get_rates():
     for currency_name in ('USD', 'EUR', 'GBP'):
         rate = Rate.query.filter_by(from_currency=currency_name).order_by(Rate.last_update.desc()).first()
         res_rates[currency_name] = {}
-        print(res_rates)
         res_rates[currency_name]['lastUpdate'] = rate.last_update
-        print(res_rates)
         res_rates[currency_name]['rate'] = (rate.buy + rate.sell)/2
-        print(res_rates)
 
     return jsonify(res_rates), 200
 
+@app.route('/spread')
+def get_spread():
+    res_spread = {}
+    for currency_name in ('USD', 'EUR', 'GBP'):
+        rate = Rate.query.filter_by(from_currency=currency_name).order_by(Rate.last_update.desc()).first()
+        res_spread[currency_name] = {}
+        res_spread[currency_name]['lastUpdate'] = rate.last_update
+        res_spread[currency_name]['abs'] = round(abs(rate.buy - rate.sell), 2)
+        res_spread[currency_name]['rel'] = round(rate.buy - rate.sell, 2)
 
+    return jsonify(res_spread), 200
+
+@app.route('/rate_average')
+def get_rate_average():
+    res_rate_avg = {}
+
+    last_day_msecs = (time.time() - (24 * 60 * 60)) * 1000
+    for currency_name in ('USD', 'EUR', 'GBP'):
+        rates_list = Rate.query.filter_by(from_currency=currency_name).filter(Rate.last_update >= last_day_msecs).order_by(Rate.last_update.desc()).all()
+
+
+    return jsonify(res_rate_avg), 200
 
 if __name__ == '__main__':
     app.run(debug=True)
