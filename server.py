@@ -3,12 +3,11 @@ from flask_sqlalchemy import SQLAlchemy
 from threading import Thread
 import requests
 import time
-#import data_collection as dc
 
 # constants
-bank_api_url = 'https://www.tinkoff.ru/api/v1/currency_rates/'
-data_update_time = 1800 # seconds (30 minutes)
-rate_objects_indexes = (6, 9, 12)
+BANK_API_URL = 'https://www.tinkoff.ru/api/v1/currency_rates/'
+DATA_UPDATE_TIME = 1800 # seconds (30 minutes)
+RATE_OBJECTS_INDEXES = (6, 9, 12)
 
 # Flask config
 app = Flask(__name__)
@@ -69,7 +68,7 @@ class DataCollector(Thread):
 
                     last_upd = time.time()
 
-DataCollector(db, data_update_time, bank_api_url, rate_objects_indexes)
+DataCollector(db, DATA_UPDATE_TIME, BANK_API_URL, RATE_OBJECTS_INDEXES)
 
 # routes
 @app.route('/test')
