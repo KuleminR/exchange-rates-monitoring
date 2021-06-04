@@ -1,4 +1,4 @@
-from flask import Flask
+from flask import Flask, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from threading import Thread
 import requests
@@ -68,12 +68,24 @@ class DataCollector(Thread):
 
                     last_upd = time.time()
 
-DataCollector(db, DATA_UPDATE_TIME, BANK_API_URL, RATE_OBJECTS_INDEXES)
+#DataCollector(db, DATA_UPDATE_TIME, BANK_API_URL, RATE_OBJECTS_INDEXES)
 
 # routes
-@app.route('/test')
-def test():
-    return '200'
+@app.route('/rates')
+def get_rates():
+    res_rates = {}
+    for currency_name in ('USD', 'EUR', 'GBP'):
+        rate = Rate.query.filter_by(from_currency=currency_name).order_by(Rate.last_update.desc()).first()
+        res_rates[currency_name] = {}
+        print(res_rates)
+        res_rates[currency_name]['lastUpdate'] = rate.last_update
+        print(res_rates)
+        res_rates[currency_name]['rate'] = (rate.buy + rate.sell)/2
+        print(res_rates)
+
+    return jsonify(res_rates), 200
+
+
 
 if __name__ == '__main__':
     app.run(debug=True)
