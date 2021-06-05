@@ -1,4 +1,4 @@
-from flask import Flask
+from flask import Flask, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from threading import Thread
 import requests
@@ -6,7 +6,7 @@ import time
 
 # constants
 BANK_API_URL = 'https://www.tinkoff.ru/api/v1/currency_rates/'
-DATA_UPDATE_TIME = 1800 # seconds (30 minutes)
+DATA_UPDATE_TIME = 600 # seconds (10 minutes)
 RATE_OBJECTS_INDEXES = (6, 9, 12)
 
 # Flask config
@@ -71,9 +71,59 @@ class DataCollector(Thread):
 DataCollector(db, DATA_UPDATE_TIME, BANK_API_URL, RATE_OBJECTS_INDEXES)
 
 # routes
-@app.route('/test')
-def test():
-    return '200'
+@app.route('/rates')
+def get_rates():
+    res_rates = {}
+    for currency_name in ('USD', 'EUR', 'GBP'):
+        rate = Rate.query.filter_by(from_currency=currency_name).order_by(Rate.last_update.desc()).first()
+        res_rates[currency_name] = {}
+        res_rates[currency_name]['lastUpdate'] = rate.last_update
+        res_rates[currency_name]['rate'] = (rate.buy + rate.sell)/2
+
+    return jsonify(res_rates), 200
+
+@app.route('/spread')
+def get_spread():
+    res_spread = {}
+    for currency_name in ('USD', 'EUR', 'GBP'):
+        rate = Rate.query.filter_by(from_currency=currency_name).order_by(Rate.last_update.desc()).first()
+        res_spread[currency_name] = {}
+        res_spread[currency_name]['lastUpdate'] = rate.last_update
+        res_spread[currency_name]['abs'] = round(abs(rate.buy - rate.sell), 3)
+        res_spread[currency_name]['rel'] = round(rate.buy - rate.sell, 3)
+
+    return jsonify(res_spread), 200
+
+@app.route('/rates_average')
+def get_rates_average():
+    res_rate_avg = {}
+
+    end_time_point = time.time() * 1000
+    upd_time_point = end_time_point - 24 * 60 * 60 * 1000 # точка начала отсчета
+    for currency_name in ('USD', 'EUR', 'GBP'):
+        rates_list = Rate.query.filter_by(from_currency=currency_name).filter(Rate.last_update >= upd_time_point).order_by(Rate.last_update.asc()).all()
+        weights = {}
+        for rate in rates_list:
+            computed_rate = (rate.buy + rate.sell)/2
+            if str(computed_rate) not in weights.keys():
+                weights[str(computed_rate)] = rate.last_update - upd_time_point
+                upd_time_point = rate.last_update
+            else:
+                weights[str(computed_rate)] += rate.last_update - upd_time_point
+                upd_time_point = rate.last_update
+            if rate == rates_list[-1]:
+                weights[str(computed_rate)] += end_time_point - upd_time_point
+
+        upper_member = 0
+        lower_member = 0
+        for rate, weight in weights.items():
+            upper_member += float(rate)*weight
+            lower_member += weight
+
+        avg_rate = round(upper_member/lower_member, 3)
+        res_rate_avg[currency_name] = avg_rate
+
+    return jsonify(res_rate_avg), 200
 
 if __name__ == '__main__':
     app.run(debug=True)
