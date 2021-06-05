@@ -68,7 +68,7 @@ class DataCollector(Thread):
 
                     last_upd = time.time()
 
-#DataCollector(db, DATA_UPDATE_TIME, BANK_API_URL, RATE_OBJECTS_INDEXES)
+DataCollector(db, DATA_UPDATE_TIME, BANK_API_URL, RATE_OBJECTS_INDEXES)
 
 # routes
 @app.route('/rates')
