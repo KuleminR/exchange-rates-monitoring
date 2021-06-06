@@ -125,5 +125,20 @@ def get_rates_average():
 
     return jsonify(res_rate_avg), 200
 
+@app.route('/rates_history')
+def get_rates_history():
+    history = {}
+
+    for currency_name in ('USD', 'EUR', 'GBP'):
+        rates_list = Rate.query.filter_by(from_currency=currency_name).order_by(Rate.last_update.asc()).all()
+        history[currency_name] = {}
+        history[currency_name]['rates'] = []
+        history[currency_name]['updateTimes'] = []
+        for rate in rates_list:
+            history[currency_name]['rates'].append((rate.buy + rate.sell)/2)
+            history[currency_name]['updateTimes'].append(rate.last_update)
+
+    return jsonify(history), 200
+
 if __name__ == '__main__':
     app.run(debug=True)
