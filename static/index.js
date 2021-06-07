@@ -1,29 +1,7 @@
-//function sendGetRequest(url){
-//    const headers = {
-//        'Content-Type': 'application/json'
-//    };
-//    return fetch(url, {
-//        method: 'GET',
-//        headers: headers
-//    }).then( response => {
-//        if (response.ok){
-//            return response.json();
-//        }
-//    })
-//
-//    return response.json().then(err => {
-//        let e = new Error('Ошибка сервера');
-//        e.data = err;
-//        throw e;
-//    })
-//}
-
 function App() {
     return(
         <div className="main">
-            <div className="all-stats">
-                <CurrencyInfoBlock />
-            </div>
+            <CurrencyInfoBlock />
         </div>
     )
 }
@@ -59,7 +37,6 @@ class CurrencyInfoBlock extends React.Component {
                 };
             };
             this.setState(updated_state);
-            console.log(this.state);
         });
 
         // загрузка данных о спреде
@@ -75,7 +52,6 @@ class CurrencyInfoBlock extends React.Component {
                 };
             };
             this.setState(updated_state);
-            console.log(this.state);
         });
 
         // загрузка данных о средневзвешенном значении курса
@@ -88,21 +64,45 @@ class CurrencyInfoBlock extends React.Component {
                 updated_state.rates_avg_state[key] = data[key];
             };
             this.setState(updated_state);
-            console.log(this.state);
         });
     }
 
     render() {
         try
         {
-            let info = this.state.rates_state.EUR.rate;
+            const currencies = ['EUR', 'USD', 'GBP'];
+            let info = [];
+            for (let currency of currencies) {
+                let date = new Date(this.state.rates_state[currency].lastUpdate);
+                let last_update_str = date.getHours() + ':' + date.getMinutes() + ':' + date.getSeconds()
+                + ' ' + date.getDate() + '.' + (date.getMonth() + 1) + '.' + date.getFullYear();
+                info.push(
+                    <li key = {currency}>
+                        <h1> {currency} </h1>
+                        <p>Курс: {this.state.rates_state[currency].rate}</p>
+                        <p>Средневзвешенный курс: {this.state.rates_avg_state[currency]}</p>
+                        <p>Спред (абсолютный): {this.state.spread_state[currency].spread_abs}</p>
+                        <p>Спред (относительный): {this.state.spread_state[currency].spread_rel}%</p>
+                        <p>Актуально на {last_update_str}</p>
+                    </li>
+                );
+            }
             return (
-                <h1>{ info }</h1>
+                <ul>{ info }</ul>
             );
         } catch(error) {
-            let info = 'Not found';
+            let info = 'Updating...';
             return (
-                <h1>{ info }</h1>
+                <ul>
+                    <li>
+                        <h1>Updating...</h1>
+                        <p>Updating...</p>
+                        <p>Updating...</p>
+                        <p>Updating...</p>
+                        <p>Updating...%</p>
+                        <p>Updating...</p>
+                    </li>
+                </ul>
             );
         }
     }
