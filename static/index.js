@@ -1,4 +1,3 @@
-
 //function sendGetRequest(url){
 //    const headers = {
 //        'Content-Type': 'application/json'
@@ -33,27 +32,6 @@ class CurrencyInfoBlock extends React.Component {
     constructor(props) {
         super(props);
         this.state = {
-//            EUR: {
-//                lastUpdate: null,
-//                rate: null,
-//                spread_abs: null,
-//                spread_rel: null,
-//                rate_avg: null
-//            },
-//            USD: {
-//                lastUpdate: null,
-//                rate: null,
-//                spread_abs: null,
-//                spread_rel: null,
-//                rate_avg: null
-//            },
-//            GBP: {
-//                lastUpdate: null,
-//                rate: null,
-//                spread_abs: null,
-//                spread_rel: null,
-//                rate_avg: null
-//            },
         };
     }
 
@@ -67,29 +45,49 @@ class CurrencyInfoBlock extends React.Component {
                 'Content-Type': 'application/json'
             }
         };
+
+        // загрузка данных о курсе
         fetch(rates_url, fetch_params)
         .then(response => response.json())
         .then(data => {
-            let rates_list = [];
-            let update_time_list = [];
+            let updated_state = {'rates_state': {}};
+
             for (let key in data) {
-                update_time_list.push(data[key]['lastUpdate']);
-                rates_list.push(data[key]['rate']);
+                updated_state.rates_state[key] = {
+                    'lastUpdate': data[key]['lastUpdate'],
+                    'rate': data[key]['rate']
+                };
             };
-            this.setState({
-                EUR: {
-                    lastUpdate: update_time_list[0],
-                    rate: rates_list[0]
-                },
-                USD: {
-                    lastUpdate: update_time_list[1],
-                    rate: rates_list[1]
-                },
-                GBP: {
-                    lastUpdate: update_time_list[2],
-                    rate: rates_list[2]
-                }
-            });
+            this.setState(updated_state);
+            console.log(this.state);
+        });
+
+        // загрузка данных о спреде
+        fetch(spread_url, fetch_params)
+        .then(response => response.json())
+        .then(data => {
+            let updated_state = {'spread_state': {}};
+
+            for (let key in data) {
+                updated_state.spread_state[key] = {
+                    'spread_abs': data[key]['abs'],
+                    'spread_rel': data[key]['rel']
+                };
+            };
+            this.setState(updated_state);
+            console.log(this.state);
+        });
+
+        // загрузка данных о средневзвешенном значении курса
+        fetch(rates_avg_url, fetch_params)
+        .then(response => response.json())
+        .then(data => {
+            let updated_state = {'rates_avg_state': {}};
+
+            for (let key in data) {
+                updated_state.rates_avg_state[key] = data[key];
+            };
+            this.setState(updated_state);
             console.log(this.state);
         });
     }
@@ -97,7 +95,7 @@ class CurrencyInfoBlock extends React.Component {
     render() {
         try
         {
-            let info = this.state.EUR.rate;
+            let info = this.state.rates_state.EUR.rate;
             return (
                 <h1>{ info }</h1>
             );
