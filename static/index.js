@@ -2,6 +2,7 @@ function App() {
     return(
         <div className="main">
             <CurrencyInfoBlock />
+            <HistoryBlock />
         </div>
     )
 }
@@ -9,8 +10,7 @@ function App() {
 class CurrencyInfoBlock extends React.Component {
     constructor(props) {
         super(props);
-        this.state = {
-        };
+        this.state = {};
     }
 
     componentDidMount() {
@@ -88,26 +88,110 @@ class CurrencyInfoBlock extends React.Component {
                 );
             }
             return (
-                <ul>{ info }</ul>
+                <div className="currency-info">
+                    <h1>Информация о валюте (по отношению к рублю)</h1>
+                    <ul>{ info }</ul>
+                </div>
             );
         } catch(error) {
             let info = 'Updating...';
             return (
-                <ul>
-                    <li>
-                        <h1>Updating...</h1>
-                        <p>Updating...</p>
-                        <p>Updating...</p>
-                        <p>Updating...</p>
-                        <p>Updating...%</p>
-                        <p>Updating...</p>
-                    </li>
-                </ul>
+                <div className="currency-info">
+                    <h1>Информация о валюте (по отношению к рублю)</h1>
+                    <ul>
+                        <li>
+                            <h1>Updating...</h1>
+                            <p>Updating...</p>
+                            <p>Updating...</p>
+                            <p>Updating...</p>
+                            <p>Updating...%</p>
+                            <p>Updating...</p>
+                        </li>
+                    </ul>
+                </div>
             );
         }
     }
 };
 
+class HistoryBlock extends React.Component {
+    constructor(props) {
+        super(props);
+        this.state = {};
+    }
+
+    componentDidMount() {
+        const history_url = 'http://127.0.0.1:5000/rates_history';
+        let fetch_params = {
+            method: 'GET',
+            headers: {'Content-Type': 'application/json'}
+        };
+
+        fetch(history_url, fetch_params)
+        .then(response => response.json())
+        .then(response_json => {
+            for (let key in response_json) {
+                const points = [];
+                for (let i = 0; i < response_json[key].updatePoints.length; i++){
+                    points.push({
+                        x: response_json[key].updatePoints[i],
+                        y: response_json[key].rates[i]
+                    });
+                }
+                const data = {
+                    datasets: [{
+                        label: 'Изменение курса ' + key,
+                        borderColor: 'rgb(50, 100, 245)',
+                        showLine: true,
+                        data: points
+                    }]
+                };
+                let config = {
+                    type: 'scatter',
+                    data,
+                    options: {
+                        scales:{
+                            x:{
+                                ticks: {
+                                    callback: (value, index, values) => {
+                                        let date = new Date(value);
+                                        return(date.getHours() + ':' + date.getMinutes() + ':' + date.getSeconds()
+                                        + ' ' + date.getDate() + '.' + (date.getMonth() + 1) + '.' + date.getFullYear());
+                                    }
+                                }
+                            }
+                        },
+                        tooltips: {
+                            enabled: true,
+                            mode: 'single',
+                            callbacks: {
+                                label: function(tooltipItems, data) {
+                                    let multistringText = [tooltipItems.yLabel];
+                                    multistringText.push('Another Item');
+                                    multistringText.push(tooltipItems.index+1);
+                                    multistringText.push('One more Item');
+                                    return multistringText;
+                                }
+                            }
+                        },
+                    }
+                };
+                let chart = new Chart(document.getElementById(key), config);
+            }
+        });
+    }
+
+    render() {
+        return (
+            <div className="history-block">
+                <h1> История изменения курса</h1>
+                <canvas id="EUR"></canvas>
+                <canvas id="USD"></canvas>
+                <canvas id="GBP"></canvas>
+            </div>
+        )
+    }
+};
 
 ReactDOM.render(
     <App />,
