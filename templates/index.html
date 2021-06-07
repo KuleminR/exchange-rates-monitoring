@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="UTF-8" />
+        <title>Курс валют (USD, EUR, GBP)</title>
+    </head>
+    <body>
+        <div id="root"></div>
+
+        <script type="application/javascript" src="{{ url_for('static', filename='lib/react.development.js') }}"></script>
+        <script type="application/javascript" src="{{ url_for('static', filename='lib/react-dom.development.js') }}"></script>
+        <script type="application/javascript" src="{{ url_for('static', filename='lib/babel.min.js') }}"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.3.2/chart.min.js"
+                integrity="sha512-VCHVc5miKoln972iJPvkQrUYYq7XpxXzvqNfiul1H4aZDwGBGC0lq373KNleaB2LpnC2a/iNfE5zoRYmB4TRDQ=="
+                crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+        <script type="text/babel" src="{{ url_for('static', filename='index.js') }}"></script>
+    </body>
+</html>

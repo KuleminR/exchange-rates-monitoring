@@ -1,4 +1,4 @@
-from flask import Flask, jsonify
+from flask import Flask, jsonify, render_template
 from flask_sqlalchemy import SQLAlchemy
 from threading import Thread
 import requests
@@ -67,10 +67,13 @@ class DataCollector(Thread):
                               ':' + str(check_time.tm_min) + ':' + str(check_time.tm_sec) + ' ' + str(rates_update_time_mil))
 
                     last_upd = time.time()
-
-DataCollector(db, DATA_UPDATE_TIME, BANK_API_URL, RATE_OBJECTS_INDEXES)
+                    time.sleep(self.data_update_time - 1)
 
 # routes
+@app.route('/')
+def index():
+    return render_template('index.html')
+
 @app.route('/rates')
 def get_rates():
     res_rates = {}
@@ -89,8 +92,8 @@ def get_spread():
         rate = Rate.query.filter_by(from_currency=currency_name).order_by(Rate.last_update.desc()).first()
         res_spread[currency_name] = {}
         res_spread[currency_name]['lastUpdate'] = rate.last_update
-        res_spread[currency_name]['abs'] = round(abs(rate.buy - rate.sell), 3)
-        res_spread[currency_name]['rel'] = round(rate.buy - rate.sell, 3)
+        res_spread[currency_name]['abs'] = round((rate.sell - rate.buy), 3)
+        res_spread[currency_name]['rel'] = round(((rate.sell - rate.buy)/rate.sell) * 100, 3)
 
     return jsonify(res_spread), 200
 
@@ -98,9 +101,9 @@ def get_spread():
 def get_rates_average():
     res_rate_avg = {}
 
-    end_time_point = time.time() * 1000
-    upd_time_point = end_time_point - 24 * 60 * 60 * 1000 # точка начала отсчета
     for currency_name in ('USD', 'EUR', 'GBP'):
+        end_time_point = time.time() * 1000
+        upd_time_point = end_time_point - 24 * 60 * 60 * 1000 # точка начала отсчета
         rates_list = Rate.query.filter_by(from_currency=currency_name).filter(Rate.last_update >= upd_time_point).order_by(Rate.last_update.asc()).all()
         weights = {}
         for rate in rates_list:
@@ -131,14 +134,17 @@ def get_rates_history():
 
     for currency_name in ('USD', 'EUR', 'GBP'):
         rates_list = Rate.query.filter_by(from_currency=currency_name).order_by(Rate.last_update.asc()).all()
-        history[currency_name] = {}
-        history[currency_name]['rates'] = []
-        history[currency_name]['updateTimes'] = []
+        history[currency_name] = {
+            'rates': [],
+            'updatePoints': []
+        }
         for rate in rates_list:
             history[currency_name]['rates'].append((rate.buy + rate.sell)/2)
-            history[currency_name]['updateTimes'].append(rate.last_update)
+            history[currency_name]['updatePoints'].append(rate.last_update)
 
     return jsonify(history), 200
 
+
 if __name__ == '__main__':
-    app.run(debug=True)
+    DataCollector(db, DATA_UPDATE_TIME, BANK_API_URL, RATE_OBJECTS_INDEXES)
+    app.run()
