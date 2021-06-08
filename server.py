@@ -1,6 +1,7 @@
 from flask import Flask, jsonify, render_template
 from flask_sqlalchemy import SQLAlchemy
 from threading import Thread
+from statsmodels.tsa.arima.model import ARIMA
 import requests
 import time
 
@@ -47,27 +48,36 @@ class DataCollector(Thread):
         return rate
 
     def run(self):
+        last_upd = Rate.query.order_by(Rate.last_update.desc()).first().last_update/1000
+        offset = self.data_update_time - (time.time() - last_upd)
+        print(offset)
+        if offset > 0:
+            time.sleep(offset)
         last_upd = 0
         while True:
             if (time.time() - last_upd) >= self.data_update_time:
-                data = requests.get(self.bank_api_url).json()
-                if data['resultCode'] == 'OK':
-                    payload = data['payload']
-                    rates_update_time_mil = payload['lastUpdate']['milliseconds']
-                    for index in self.rate_objects_indexes:
-                        rate_object = payload['rates'][index]
-                        try:
-                            new_rate_record = self._create_rate(rates_update_time_mil, rate_object)
-                        except KeyError:
-                            continue
-                        self.database.session.add(new_rate_record)
-                        self.database.session.commit()
-                        check_time = time.localtime()
-                        print('created new rate record at ' + str(check_time.tm_year) + '/' + str(check_time.tm_hour) +
-                              ':' + str(check_time.tm_min) + ':' + str(check_time.tm_sec) + ' ' + str(rates_update_time_mil))
-
-                    last_upd = time.time()
-                    time.sleep(self.data_update_time - 1)
+                try:
+                    data = requests.get(self.bank_api_url).json()
+                    if data['resultCode'] == 'OK':
+                        payload = data['payload']
+                        rates_update_time_mil = payload['lastUpdate']['milliseconds']
+                        for i in self.rate_objects_indexes:
+                            rate_object = payload['rates'][i]
+                            try:
+                                new_rate_record = self._create_rate(rates_update_time_mil, rate_object)
+                            except KeyError:
+                                continue
+                            self.database.session.add(new_rate_record)
+                            self.database.session.commit()
+                            check_time = time.localtime()
+                            print('created new rate record at ' + str(check_time.tm_year) + '/' +
+                                  str(check_time.tm_hour) + ':' + str(check_time.tm_min) +
+                                  ':' + str(check_time.tm_sec) + ' ' + str(rates_update_time_mil))
+                        last_upd = time.time()
+                except requests.ConnectionError as e:
+                    print(str(e))
+                    pass
+                time.sleep(self.data_update_time - 1)
 
 # routes
 @app.route('/')
@@ -81,7 +91,7 @@ def get_rates():
         rate = Rate.query.filter_by(from_currency=currency_name).order_by(Rate.last_update.desc()).first()
         res_rates[currency_name] = {}
         res_rates[currency_name]['lastUpdate'] = rate.last_update
-        res_rates[currency_name]['rate'] = (rate.buy + rate.sell)/2
+        res_rates[currency_name]['rate'] = round((rate.buy + rate.sell)/2, 2)
 
     return jsonify(res_rates), 200
 
@@ -92,8 +102,8 @@ def get_spread():
         rate = Rate.query.filter_by(from_currency=currency_name).order_by(Rate.last_update.desc()).first()
         res_spread[currency_name] = {}
         res_spread[currency_name]['lastUpdate'] = rate.last_update
-        res_spread[currency_name]['abs'] = round((rate.sell - rate.buy), 3)
-        res_spread[currency_name]['rel'] = round(((rate.sell - rate.buy)/rate.sell) * 100, 3)
+        res_spread[currency_name]['abs'] = round((rate.sell - rate.buy), 2)
+        res_spread[currency_name]['rel'] = round(((rate.sell - rate.buy)/rate.sell) * 100, 2)
 
     return jsonify(res_spread), 200
 
@@ -107,7 +117,7 @@ def get_rates_average():
         rates_list = Rate.query.filter_by(from_currency=currency_name).filter(Rate.last_update >= upd_time_point).order_by(Rate.last_update.asc()).all()
         weights = {}
         for rate in rates_list:
-            computed_rate = (rate.buy + rate.sell)/2
+            computed_rate = round((rate.buy + rate.sell)/2, 2)
             if str(computed_rate) not in weights.keys():
                 weights[str(computed_rate)] = rate.last_update - upd_time_point
                 upd_time_point = rate.last_update
@@ -123,7 +133,7 @@ def get_rates_average():
             upper_member += float(rate)*weight
             lower_member += weight
 
-        avg_rate = round(upper_member/lower_member, 3)
+        avg_rate = round(upper_member/lower_member, 2)
         res_rate_avg[currency_name] = avg_rate
 
     return jsonify(res_rate_avg), 200
@@ -139,10 +149,38 @@ def get_rates_history():
             'updatePoints': []
         }
         for rate in rates_list:
-            history[currency_name]['rates'].append((rate.buy + rate.sell)/2)
+            history[currency_name]['rates'].append(round((rate.buy + rate.sell)/2, 2))
             history[currency_name]['updatePoints'].append(rate.last_update)
 
     return jsonify(history), 200
+
+@app.route('/rates_forecast')
+def get_rates_forecast():
+    forecast = {}
+
+    for currency_name in ('USD', 'EUR', 'GBP'):
+        rates_list = Rate.query.filter_by(from_currency=currency_name).order_by(Rate.last_update.asc()).all()
+        forecast[currency_name] = {
+            'rates': [],
+            'updatePoints': []
+        }
+        # сбор данных для обучения модели
+        training_data = []
+        for rate in rates_list:
+            training_data.append(round((rate.buy + rate.sell)/2, 2))
+
+        # обучение модели
+        model = ARIMA(training_data, order=(2, 1, 1))
+        model_fit = model.fit()
+
+        # составление прогноза
+        predictions = model_fit.forecast(steps=3*24*6).tolist()
+        forecast[currency_name]['rates'] = list(map(lambda num: round(num, 2), predictions))
+        delta_time = 600  # 10 mins
+        time_points = [(time.time() + timepoint * delta_time) * 1000 for timepoint in range(len(predictions))]
+        forecast[currency_name]['updatePoints'] = time_points
+
+    return jsonify(forecast), 200
 
 
 if __name__ == '__main__':
