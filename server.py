@@ -48,35 +48,36 @@ class DataCollector(Thread):
         return rate
 
     def run(self):
-        # last_upd = Rate.query.order_by(Rate.last_update.desc()).first().last_update/1000
-        # last_upd_local = time.localtime(last_upd)
-        # print('last record was at ' + str(last_upd_local.tm_year) + '/' + str(last_upd_local.tm_hour) +
-        #       ':' + str(last_upd_local.tm_min) + ':' + str(last_upd_local.tm_sec))
-        # offset = self.data_update_time - (time.time() - last_upd)
-        # print(last_upd)
+        last_upd = Rate.query.order_by(Rate.last_update.desc()).first().last_update/1000
+        offset = self.data_update_time - (time.time() - last_upd)
+        print(offset)
+        if offset > 0:
+            time.sleep(offset)
         last_upd = 0
         while True:
             if (time.time() - last_upd) >= self.data_update_time:
-                data = requests.get(self.bank_api_url).json()
-                if data['resultCode'] == 'OK':
-                    payload = data['payload']
-                    rates_update_time_mil = payload['lastUpdate']['milliseconds']
-                    for index in self.rate_objects_indexes:
-                        rate_object = payload['rates'][index]
-                        try:
-                            new_rate_record = self._create_rate(rates_update_time_mil, rate_object)
-                        except KeyError:
-                            continue
-                        self.database.session.add(new_rate_record)
-                        self.database.session.commit()
-                        check_time = time.localtime()
-                        print('created new rate record at ' + str(check_time.tm_year) + '/' + str(check_time.tm_hour) +
-                              ':' + str(check_time.tm_min) + ':' + str(check_time.tm_sec) + ' ' + str(rates_update_time_mil))
-
-                    last_upd = time.time()
-                    # if offset > 0:
-                    #     offset = 0
-                    time.sleep(self.data_update_time - 1)
+                try:
+                    data = requests.get(self.bank_api_url).json()
+                    if data['resultCode'] == 'OK':
+                        payload = data['payload']
+                        rates_update_time_mil = payload['lastUpdate']['milliseconds']
+                        for i in self.rate_objects_indexes:
+                            rate_object = payload['rates'][i]
+                            try:
+                                new_rate_record = self._create_rate(rates_update_time_mil, rate_object)
+                            except KeyError:
+                                continue
+                            self.database.session.add(new_rate_record)
+                            self.database.session.commit()
+                            check_time = time.localtime()
+                            print('created new rate record at ' + str(check_time.tm_year) + '/' +
+                                  str(check_time.tm_hour) + ':' + str(check_time.tm_min) +
+                                  ':' + str(check_time.tm_sec) + ' ' + str(rates_update_time_mil))
+                        last_upd = time.time()
+                except requests.ConnectionError as e:
+                    print(str(e))
+                    pass
+                time.sleep(self.data_update_time - 1)
 
 # routes
 @app.route('/')
@@ -169,7 +170,7 @@ def get_rates_forecast():
             training_data.append((rate.buy + rate.sell)/2)
 
         # обучение модели
-        model = ARIMA(training_data, order=(1, 0, 1))
+        model = ARIMA(training_data, order=(3, 1, 0))
         model_fit = model.fit()
 
         # составление прогноза
@@ -183,5 +184,5 @@ def get_rates_forecast():
 
 
 if __name__ == '__main__':
-    #DataCollector(db, DATA_UPDATE_TIME, BANK_API_URL, RATE_OBJECTS_INDEXES)
+    DataCollector(db, DATA_UPDATE_TIME, BANK_API_URL, RATE_OBJECTS_INDEXES)
     app.run()
