@@ -4,11 +4,11 @@ function App() {
             <CurrencyInfoBlock />
             <ChartBlock name="История изменения курса"
              url="http://127.0.0.1:5000/rates_history"
-             label="Изменение курса" color="rgb(50, 100, 200)"
+             label="Значение курса" color="rgb(50, 100, 200)"
              className="history-block" />
              <ChartBlock name="Прогноз курса на ближайшие 3 дня"
              url="http://127.0.0.1:5000/rates_forecast"
-             label="Изменение курса" color="rgb(250, 120, 70)"
+             label="Значение курса" color="rgb(250, 120, 70)"
              className="forecast-block"/>
         </div>
     )
@@ -139,13 +139,15 @@ class ChartBlock extends React.Component {
         .then(response_json => {
             for (let key in response_json) {
                 const points = [];
+                const labels = [];
                 for (let i = 0; i < response_json[key].updatePoints.length; i++){
-                    points.push({
-                        x: response_json[key].updatePoints[i],
-                        y: response_json[key].rates[i]
-                    });
+                    points.push(response_json[key].rates[i]);
+                    let date = new Date(response_json[key].updatePoints[i]);
+                    labels.push(date.getHours() + ':' + date.getMinutes() + ':' + date.getSeconds()
+                        + ' ' + date.getDate() + '.' + (date.getMonth() + 1) + '.' + date.getFullYear());
                 }
                 const data = {
+                    labels: labels,
                     datasets: [{
                         label: this.props.label + ' ' + key,
                         borderColor: this.props.color,
@@ -154,23 +156,9 @@ class ChartBlock extends React.Component {
                     }]
                 };
                 let config = {
-                    type: 'scatter',
+                    type: 'line',
                     data,
-                    options: {
-
-                        scales:{
-                            x:{
-                                ticks: {
-                                    beginAtZero: true,
-                                    callback: (value, index, values) => {
-                                        let date = new Date(value);
-                                        return(date.getHours() + ':' + date.getMinutes() + ':' + date.getSeconds()
-                                        + ' ' + date.getDate() + '.' + (date.getMonth() + 1) + '.' + date.getFullYear());
-                                    }
-                                }
-                            }
-                        }
-                    }
+                    options: {}
                 };
                 let chart = new Chart(document.getElementById(this.props.name + '-' + key), config);
             }
