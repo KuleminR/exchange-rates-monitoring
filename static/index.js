@@ -157,9 +157,11 @@ class ChartBlock extends React.Component {
                     type: 'scatter',
                     data,
                     options: {
+
                         scales:{
                             x:{
                                 ticks: {
+                                    beginAtZero: true,
                                     callback: (value, index, values) => {
                                         let date = new Date(value);
                                         return(date.getHours() + ':' + date.getMinutes() + ':' + date.getSeconds()
@@ -183,9 +185,11 @@ class ChartBlock extends React.Component {
         return (
             <div className={this.props.className}>
                 <h1>{this.props.name}</h1>
-                <canvas id={ids[0]}></canvas>
-                <canvas id={ids[1]}></canvas>
-                <canvas id={ids[2]}></canvas>
+                <ul>
+                    <li key = {ids[0]}><canvas id={ids[0]}></canvas></li>
+                    <li key = {ids[1]}><canvas id={ids[1]}></canvas></li>
+                    <li key = {ids[2]}><canvas id={ids[2]}></canvas></li>
+                </ul>
             </div>
         )
     }
