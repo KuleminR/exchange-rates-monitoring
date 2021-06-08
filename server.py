@@ -184,5 +184,5 @@ def get_rates_forecast():
 
 
 if __name__ == '__main__':
-    #DataCollector(db, DATA_UPDATE_TIME, BANK_API_URL, RATE_OBJECTS_INDEXES)
+    DataCollector(db, DATA_UPDATE_TIME, BANK_API_URL, RATE_OBJECTS_INDEXES)
     app.run()
