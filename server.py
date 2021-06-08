@@ -1,6 +1,7 @@
 from flask import Flask, jsonify, render_template
 from flask_sqlalchemy import SQLAlchemy
 from threading import Thread
+from statsmodels.tsa.arima.model import ARIMA
 import requests
 import time
 
@@ -47,6 +48,12 @@ class DataCollector(Thread):
         return rate
 
     def run(self):
+        # last_upd = Rate.query.order_by(Rate.last_update.desc()).first().last_update/1000
+        # last_upd_local = time.localtime(last_upd)
+        # print('last record was at ' + str(last_upd_local.tm_year) + '/' + str(last_upd_local.tm_hour) +
+        #       ':' + str(last_upd_local.tm_min) + ':' + str(last_upd_local.tm_sec))
+        # offset = self.data_update_time - (time.time() - last_upd)
+        # print(last_upd)
         last_upd = 0
         while True:
             if (time.time() - last_upd) >= self.data_update_time:
@@ -67,6 +74,8 @@ class DataCollector(Thread):
                               ':' + str(check_time.tm_min) + ':' + str(check_time.tm_sec) + ' ' + str(rates_update_time_mil))
 
                     last_upd = time.time()
+                    # if offset > 0:
+                    #     offset = 0
                     time.sleep(self.data_update_time - 1)
 
 # routes
@@ -144,7 +153,35 @@ def get_rates_history():
 
     return jsonify(history), 200
 
+@app.route('/rates_forecast')
+def get_rates_forecast():
+    forecast = {}
+
+    for currency_name in ('USD', 'EUR', 'GBP'):
+        rates_list = Rate.query.filter_by(from_currency=currency_name).order_by(Rate.last_update.asc()).all()
+        forecast[currency_name] = {
+            'rates': [],
+            'updatePoints': []
+        }
+        # сбор данных для обучения модели
+        training_data = []
+        for rate in rates_list:
+            training_data.append((rate.buy + rate.sell)/2)
+
+        # обучение модели
+        model = ARIMA(training_data, order=(1, 0, 1))
+        model_fit = model.fit()
+
+        # составление прогноза
+        predictions = model_fit.forecast(steps=3*24*6).tolist()
+        forecast[currency_name]['rates'] = predictions
+        delta_time = 600 # 10 mins
+        time_points = [(time.time() + timepoint * delta_time) * 1000 for timepoint in range(len(predictions))]
+        forecast[currency_name]['updatePoints'] = time_points
+
+    return jsonify(forecast), 200
+
 
 if __name__ == '__main__':
-    DataCollector(db, DATA_UPDATE_TIME, BANK_API_URL, RATE_OBJECTS_INDEXES)
+    #DataCollector(db, DATA_UPDATE_TIME, BANK_API_URL, RATE_OBJECTS_INDEXES)
     app.run()

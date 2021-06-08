@@ -2,7 +2,14 @@ function App() {
     return(
         <div className="main">
             <CurrencyInfoBlock />
-            <HistoryBlock />
+            <ChartBlock name="История изменения курса"
+             url="http://127.0.0.1:5000/rates_history"
+             label="Изменение курса" color="rgb(50, 100, 200)"
+             className="history-block" />
+             <ChartBlock name="Прогноз курса на ближайшие 3 дня"
+             url="http://127.0.0.1:5000/rates_forecast"
+             label="Изменение курса" color="rgb(250, 120, 70)"
+             className="forecast-block"/>
         </div>
     )
 }
@@ -114,14 +121,14 @@ class CurrencyInfoBlock extends React.Component {
     }
 };
 
-class HistoryBlock extends React.Component {
+class ChartBlock extends React.Component {
     constructor(props) {
         super(props);
         this.state = {};
     }
 
     componentDidMount() {
-        const history_url = 'http://127.0.0.1:5000/rates_history';
+        const history_url = this.props.url;
         let fetch_params = {
             method: 'GET',
             headers: {'Content-Type': 'application/json'}
@@ -140,8 +147,8 @@ class HistoryBlock extends React.Component {
                 }
                 const data = {
                     datasets: [{
-                        label: 'Изменение курса ' + key,
-                        borderColor: 'rgb(50, 100, 245)',
+                        label: this.props.label + ' ' + key,
+                        borderColor: this.props.color,
                         showLine: true,
                         data: points
                     }]
@@ -160,34 +167,25 @@ class HistoryBlock extends React.Component {
                                     }
                                 }
                             }
-                        },
-                        tooltips: {
-                            enabled: true,
-                            mode: 'single',
-                            callbacks: {
-                                label: function(tooltipItems, data) {
-                                    let multistringText = [tooltipItems.yLabel];
-                                    multistringText.push('Another Item');
-                                    multistringText.push(tooltipItems.index+1);
-                                    multistringText.push('One more Item');
-                                    return multistringText;
-                                }
-                            }
-                        },
+                        }
                     }
                 };
-                let chart = new Chart(document.getElementById(key), config);
+                let chart = new Chart(document.getElementById(this.props.name + '-' + key), config);
             }
         });
     }
 
     render() {
+        let ids = [];
+        for (let currency_name of ['EUR', 'USD', 'GBP']){
+            ids.push(this.props.name + '-' + currency_name);
+        }
         return (
-            <div className="history-block">
-                <h1> История изменения курса</h1>
-                <canvas id="EUR"></canvas>
-                <canvas id="USD"></canvas>
-                <canvas id="GBP"></canvas>
+            <div className={this.props.className}>
+                <h1>{this.props.name}</h1>
+                <canvas id={ids[0]}></canvas>
+                <canvas id={ids[1]}></canvas>
+                <canvas id={ids[2]}></canvas>
             </div>
         )
     }
